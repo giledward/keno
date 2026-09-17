@@ -13,7 +13,17 @@ const $=id=>document.getElementById(id), fmt=n=>Math.floor(n).toLocaleString('en
 const price=(base,level)=>Math.min(MAX,base*2**level), goal=()=>price(2000,s.stars);
 const choose=(n,k)=>{if(k<0||k>n)return 0;let x=1;for(let i=1;i<=k;i++)x=x*(n-k+i)/i;return x};
 const chance=(n,h)=>choose(n,h)*choose(40-n,10-h)/choose(40,10);
-function multiplier(n,h){if(n===5)return OLD_PAY[h]||0;const min=n<=2?1:Math.ceil(n/2);if(h<min)return 0;let weight=2**(h-min),sum=2**(n-min+1)-1;return Math.round((.8*weight/sum/chance(n,h))*100)/100}
+const floors=[0,0,0,1.4,2,3,5,8,13,21,34];
+function multiplier(n,h){
+  if(n===5)return OLD_PAY[h]||0;
+  if(n<=2){const min=1;if(h<min)return 0;const weight=2**(h-min),sum=2**(n-min+1)-1;return Math.round((.8*weight/sum/chance(n,h))*100)/100}
+  const baseline=Array.from({length:n+1},(_,j)=>chance(n,j)*(floors[j]||0)).reduce((a,b)=>a+b,0);
+  const extra=Math.max(0,.9-baseline);
+  let value=floors[h]||0;
+  if(h===n-1)value+=extra/(3*chance(n,h));
+  if(h===n)value+=2*extra/(3*chance(n,h));
+  return Math.round(value*100)/100;
+}
 const basePay=(n,h,bet)=>Math.min(MAX,Math.floor(bet*multiplier(n,h)));
 const probability=p=>p<.001?(p*100).toFixed(5)+'%':(p*100).toFixed(2)+'%';
 function rand(max){let n,limit=4294967296-(4294967296%max);const arr=new Uint32Array(1);do{crypto.getRandomValues(arr);n=arr[0]}while(n>=limit);return n%max}
@@ -23,7 +33,7 @@ $('bank').textContent=fmt(s.bank);$('run').textContent=fmt(s.run)+' / '+fmt(goal
 $('board').replaceChildren(...Array.from({length:40},(_,i)=>{let n=i+1,b=document.createElement('button');b.className='num'+(s.picks.includes(n)?' pick':'')+(s.last.includes(n)?' drawn':'')+(s.last.includes(n)&&s.picks.includes(n)?' hit':'');b.textContent=n;b.setAttribute('aria-pressed',String(s.picks.includes(n)));b.onclick=()=>{if(s.picks.includes(n))s.picks=s.picks.filter(v=>v!==n);else if(s.picks.length<10)s.picks.push(n);else s.message='Ten numbers selected. Tap one to swap it.';save();render()};return b}));
 $('pickcount').textContent='('+s.picks.length+'/10)';$('bet').value=s.bet;$('draw').textContent='DRAW · '+fmt(s.bet)+' CREDITS';$('draw').disabled=s.picks.length<1||s.bet>s.bank;$('refill').hidden=s.bank!==0;
 $('result').textContent=s.message;$('drawn').textContent=s.last.length?'Drawn: '+[...s.last].sort((a,b)=>a-b).join(' · '):'';
-const n=s.picks.length,rows=$('paytable');rows.replaceChildren(...Array.from({length:n+1},(_,h)=>{let tr=document.createElement('tr');for(const value of [h,probability(chance(n,h)),fmt(basePay(n,h,s.bet))]){let td=document.createElement('td');td.textContent=value;tr.append(td)}return tr}));$('payintro').textContent=n?'For '+n+' pick'+(n===1?'':'s')+' at '+fmt(s.bet)+' credits per draw. Base returns average about 80% over many draws.':'Select numbers to see your payout and chances.';
+const n=s.picks.length,rows=$('paytable');rows.replaceChildren(...Array.from({length:n+1},(_,h)=>{let tr=document.createElement('tr');for(const value of [h,probability(chance(n,h)),fmt(basePay(n,h,s.bet))]){let td=document.createElement('td');td.textContent=value;tr.append(td)}return tr}));$('payintro').textContent=n?'For '+n+' pick'+(n===1?'':'s')+' at '+fmt(s.bet)+' credits per draw. Three hits pay at least 1.4×; four at least 2×. Base returns average about '+(n===5?'81':n<=2?'80':'90')+'% over many draws.':'Select numbers to see your payout and chances.';
 const names=['Bigger wins','Near match bonus','Daily stipend'];
 const details=[`Level ${s.levels[0]} · Each level adds 1× to any winning payout.`,`Level ${s.levels[1]} · Each level adds ${fmt(s.bet*(1+s.stars))} credits on exactly ${Math.min(2,Math.max(1,n))} match${n===1?'':'es'}.`,`Level ${s.levels[2]} · Each level returns 2 credits after every draw.`];
 $('upgrades').replaceChildren(...names.map((name,i)=>{let div=document.createElement('div');div.className='upgrade';let description=document.createElement('div'),title=document.createElement('b'),detail=document.createElement('span');title.textContent=name;detail.textContent=details[i];description.append(title,detail);let b=document.createElement('button'),c=price([60,45,80][i],s.levels[i]);b.textContent=fmt(c)+' credits';b.disabled=s.bank<c;b.onclick=()=>{s.bank-=c;s.levels[i]++;s.message=name+' upgraded to level '+s.levels[i]+'.';save();render()};div.append(description,b);return div}));
