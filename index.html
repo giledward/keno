@@ -24,7 +24,7 @@ function multiplier(n,h){
   if(h===n)value+=2*extra/(3*chance(n,h));
   return Math.round(value*100)/100;
 }
-const basePay=(n,h,bet)=>Math.min(MAX,Math.floor(bet*multiplier(n,h)));
+const basePay=(n,h,bet)=>Math.min(MAX,Math.ceil(bet*multiplier(n,h)));
 const probability=p=>p<.001?(p*100).toFixed(5)+'%':(p*100).toFixed(2)+'%';
 function rand(max){let n,limit=4294967296-(4294967296%max);const arr=new Uint32Array(1);do{crypto.getRandomValues(arr);n=arr[0]}while(n>=limit);return n%max}
 function sample(k){let a=Array.from({length:40},(_,i)=>i+1);for(let i=0;i<k;i++){let j=i+rand(40-i);[a[i],a[j]]=[a[j],a[i]]}return a.slice(0,k)}
